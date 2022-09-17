@@ -10,14 +10,23 @@ interface JoplinResponse {
 
 interface JoplinResponseItem {
   title: string;
-  id: string
+  id: string;
+  is_todo: 0 | 1;
+  body: string;
 }
 
+const urlFor = (searchText: string | undefined) => {
+  const query = searchText === undefined || searchText.trim().length === 0
+    ? "type:todo iscompleted:0"
+    : encodeURIComponent(searchText);
+
+  return `http://127.0.0.1:41184/search?query=${ query }&fields=id,is_todo,title,body&token=${ preferences.token }`;
+}
 export default function JoplinSearch() {
-  const [searchText, setSearchText] = useState("");
-  const encodedQuery = encodeURIComponent(searchText);
-  const url = `http://127.0.0.1:41184/search?query=${ encodedQuery }&token=${ preferences.token }`;
-  const { data, isLoading } = useFetch<JoplinResponse>(url, { keepPreviousData: true, execute: searchText.length !== 0 });
+  const [searchText, setSearchText] = useState<undefined | string>("");
+  const url = urlFor(searchText);
+  console.log(url);
+  const { data, isLoading } = useFetch<JoplinResponse>(url, { keepPreviousData: false });
   const items = data?.items ?? [];
 
   return (
@@ -27,6 +36,7 @@ export default function JoplinSearch() {
       onSearchTextChange={ setSearchText }
       searchBarPlaceholder="Search Joplin..."
       throttle
+      isShowingDetail={true}
     >
       <List.Section title="Results" subtitle={ items.length + "" }>
         { items.map((searchResult) => (
@@ -38,13 +48,15 @@ export default function JoplinSearch() {
 }
 
 function SearchListItem({ item }: { item: JoplinResponseItem }) {
+  const iconSource = item.is_todo === 0 ? Icon.QuoteBlock : Icon.Circle;
   return (
     <List.Item
       title={ item.title }
       icon={ {
-        source: Icon.Bookmark,
+        source: iconSource,
         tintColor: Color.Blue,
       } }
+      detail={<List.Item.Detail markdown={item.body}/>}
       actions={
         <ActionPanel>
           <ActionPanel.Section>
